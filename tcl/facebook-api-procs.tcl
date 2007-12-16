@@ -302,6 +302,7 @@ ad_proc facebook_api::get_groups_info {
 }
 
 ad_proc facebook_api::get_group_members {
+    -package_key
     -session_key
     -gid
     {-format json}
@@ -389,7 +390,7 @@ ad_proc facebook_api::save_are_friends {
     
     @return JSON data from are_friends
 } {
-    set json [facebook_api::are_friends -package_key "netgraph" \
+    set json [facebook_api::are_friends -package_key $package_key \
 		  -friend_ids $friend_ids \
 		  -session_key $session_key]
     ad_return_complaint 1 [json::json2dict $json]
