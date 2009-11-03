@@ -7,14 +7,14 @@
     <initial-install-p>f</initial-install-p>
     <singleton-p>t</singleton-p>
     
-    <version name="0.1d" url="http://openacs.org/repository/download/apm/facebook-api-0.1d.apm">
+    <version name="0.2d" url="http://openacs.org/repository/download/apm/facebook-api-0.2d.apm">
         <owner url="mailto:dave@solutiongrove.com">dave bauer</owner>
         <summary>Implements Facebook API</summary>
-        <vendor url="http://solutiongrove.com/">Solution Grove</vendor>
-        <description format="text/html">Implements Facebook API with helper tcl procedures to handle requests to the REST XML API.</description>
+        <vendor url="http://www.solutiongrove.com/">Solution Grove</vendor>
+        <description format="text/html">Implements Facebook API with helper tcl procedures to handle requests to the REST XML API. As of 0.2d, supports remote authentication via facebook.</description>
         <maturity>0</maturity>
 
-        <provides url="facebook-api" version="0.1d"/>
+        <provides url="facebook-api" version="0.2d"/>
 
         <callbacks>
         </callbacks>
