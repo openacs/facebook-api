@@ -48,7 +48,7 @@ ad_proc facebook_api::api_key {
 ad_proc facebook_api::secret {
     -package_key
 } {
-    Get the Facebook API key given the package_key of
+    Get the Facebook API secret given the package_key of
         the openacs package.
     The openacs package that you will use as a facebook app
         must have a "secret" parameter defined in acs-admin/apm.
@@ -125,7 +125,7 @@ ad_proc facebook_api::login {
 } {
     @return Login Status
 } {
-    ad_returnredirect http://www.facebook.com/login.php?api_key=[api_key -package_key $package_key]&v=1.0,
+    ad_returnredirect http://www.facebook.com/login.php?api_key=[api_key -package_key $package_key]&v=1.0
 }
 
 ad_proc facebook_api::format_post_vars {
@@ -160,13 +160,33 @@ ad_proc facebook_api::sort_params {
 ad_proc facebook_api::get_session_from_token {
     -package_key
     -auth_token
-    -url
+    {-url ""}
 } {
-    Returns a new session_id from facebook using the given token and redirects the user to the specified url.
+    Returns a new session_id from facebook using the given token. If a url is specified, this proc will redirect the user to the specified url.
 } {
-    facebook_api::do_request -package_key $package_key -method auth.getSession -params [list auth_token $auth_token format json]
-    facebook_api::redirect $url
-    ad_script_abort
+    # fetch session info
+    set json [facebook_api::do_request -package_key $package_key -method auth.getSession -params [list auth_token $auth_token format json]]
+    # record session info for the fb user
+    set session_data [json::json2dict $json]
+    set session_key [lindex $session_data 1]
+    set uid [lindex $session_data 3]
+    set session_expires [lindex $session_data 5]
+    if { [db_0or1row "check_fb_user" "select uid from fb_users where uid=:uid"] } {
+        db_dml "update_session_info" "update fb_users set auth_token=:auth_token, session_key=:session_key, session_expires=:session_expires where uid=:uid"
+    } else {
+        db_dml "record_session_info" "insert into fb_users (uid,auth_token,session_key,session_expires) values (:uid,:auth_token,:session_key,:session_expires)"
+    }
+    # check if the user is logged in to this oacs site
+    # if yes, then create a map between the user_id and the fb_uid
+    set user_id [ad_conn user_id]
+    if {  $user_id != 0 && ![db_0or1row "checkmap" "select uid from oacs_fb_user_map where user_id=:user_id"]} {
+        db_dml "map_fb_uid" "insert into oacs_fb_user_map (user_id,uid) values (:user_id,:uid)"
+    }
+    if { [exists_and_not_null url] } {
+        facebook_api::redirect $url
+    } else {
+        return [list $session_key $uid $session_expires]
+    }
 }
 
 ad_proc facebook_api::json_to_multirow {
@@ -179,15 +199,15 @@ ad_proc facebook_api::json_to_multirow {
     template::multirow create $multirow
     set i 1
     foreach elm $list_data {
-    array set arr_data $elm
-    template::multirow append $multirow
-    foreach name [array names arr_data] {
-        if {[lsearch [template::multirow columns $multirow] $name] < 0} {
-        template::multirow extend $multirow $name
+        array set arr_data $elm
+        template::multirow append $multirow
+        foreach name [array names arr_data] {
+            if {[lsearch [template::multirow columns $multirow] $name] < 0} {
+            template::multirow extend $multirow $name
+            }
+            template::multirow set $multirow $i $name $arr_data($name)
         }
-        template::multirow set $multirow $i $name $arr_data($name)
-    }
-    incr i
+        incr i
     }
 }
 
@@ -219,11 +239,15 @@ ad_proc facebook_api::get_user_or_redirect {
     if they are not a user
 } {
     set user [facebook_api::get_current_user_info -package_key $package_key -session_key $session_key -uid $uid]
-    array set user_array [lindex [json::json2dict $user] 0]
-    if {!$user_array(has_added_app)} {
-    redirect "http://www.facebook.com/add.php?api_key=[api_key -package_key $package_key]"
+
+    set user_info_list [json::json2dict $user]
+
+    if { [llength $user_info_list]==0 || [lindex $user_info_list 0] == "error_code" } {
+        facebook_api::redirect "http://www.facebook.com/add.php?api_key=[api_key -package_key $package_key]"
+    } else {
+        array set user_array [lindex $user_info_list 0]
+        return $user
     }
-    return $user
 }
 
 # ***************************
@@ -234,7 +258,7 @@ ad_proc facebook_api::get_user_or_redirect {
 ad_proc facebook_api::get_current_user_info {
     -package_key
     -session_key
-    {-fields "uid,first_name,last_name,status,pic_square,pic,about_me,sex,hometown_location,hs_info,interests,movies,music,political,quotes,religion,has_added_app"}
+    {-fields "uid,name,first_name,last_name,status,pic_square,pic,about_me,sex,hometown_location,hs_info,interests,movies,music,political,quotes,religion,has_added_app"}
     -uid
 } {
     Get the user information of the current user.
@@ -314,6 +338,51 @@ ad_proc facebook_api::get_group_members {
 }
 
 # ***************************
+# Photo procs
+# - procs to retrieve facebook photos
+# ***************************
+
+ad_proc facebook_api::photo_getalbums {
+    -package_key
+    -session_key
+    -uid
+    {-format "json"}
+} {
+    Returns a list of facebook photo albums from a user with the give uid
+    http://developer.facebook.com/documentation.php?v=1.0&method=photos.getAlbums
+} {
+    return [facebook_api::do_request -package_key $package_key -method "photos.getAlbums" -params [list session_key $session_key uid $uid format $format]]
+}
+
+ad_proc facebook_api::photo_getphotos {
+    -package_key
+    -session_key
+    {-subj_id ""}
+    {-aid ""}
+    {-pids ""}
+    {-format "json"}
+} {
+    Returns a list of photos
+    http://developer.facebook.com/documentation.php?v=1.0&method=photos.get
+} {
+    set params [list session_key $session_key format $format]
+    if { [exists_and_not_null subj_id] } {
+        lappend params "subj_id"
+        lappend params $subj_id
+    }
+    if { [exists_and_not_null aid] } {
+        lappend params "aid"
+        lappend params $aid
+    }
+    if { [exists_and_not_null pids] } {
+        lappend params "pids"
+        lappend params $pids
+    }
+    return [facebook_api::do_request -package_key $package_key -method "photos.get" -params $params]
+}
+
+
+# ***************************
 # Feed procs
 # - procs related to publishing feeds to user's profile page
 # ***************************
@@ -366,7 +435,7 @@ ad_proc facebook_api::publish_templatized_action {
 # Custom procs
 # - we're going to add some useful features to
 #  this api, e.g. scoring, caching user info
-# - note some of this are net yet fully functional
+# - note some of this are not yet fully functional
 # ***************************
 
 ad_proc facebook_api::score_friends {
@@ -432,7 +501,7 @@ ad_proc facebook_api::update_friends {
     -session_key
     -package_key
 } {
-    Update the list of this users friends in out database
+    Update the list of this users friends in our database
 } {
     if {![facebook_api::update_friends_p -uid $uid]} {
         return

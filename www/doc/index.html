@@ -14,8 +14,8 @@
 <p><b>Authors :</b>
 <br>Dave  Bauer (<a href="mailto:dave@solutiongrove.com">dave@solutiongrove.com</a>)
 <br>Hamilton Chua (<a href="mailto:ham@solutiongrove.com">ham@solutiongrove.com</a>)
-<br><b>Last Updated :</b> 10/27/07
-<br><b>Version :</b> 0.1d
+<br><b>Last Updated :</b> 1/29/08
+<br><b>Version :</b> 0.2d
 </p>
 
 <h2>Overview</h2>
@@ -66,20 +66,21 @@ ad_page_contract {
 }
 
 # check that we are passed an auth_token
-#  if we don't have an auth_token, redirect to 
-#  http://apps.facebook.com/your_application_name 
-#  to get one.
-# if there's no auth_token, it's most likely that 
-#  the user got here without going thru facebook
+#  an auth_token allows us to get a session_key from facebook
+#  if auth_token is empty, it is most likely that we already have a 
+#   session_key in fb_sig_session_key
 
 if {$auth_token ne ""} {
-    facebook_api::get_session_from_token -package_key "your_package_key" -auth_token $auth_token -url "http://apps.facebook.com/canvas_page_url"
+    set session_info [facebook_api::get_session_from_token -package_key $package_key -auth_token $auth_token -url $app_url]
+    set fb_sig_session_key [lindex $session_info 0]
+    set fb_sig_user [lindex $session_info 1]
 }
 
-# check that we are passed fb_sig_session_key
+# check that we have an fb_sig_session_key
 #  if we don't have this parameter it means that
-#  the user doesn't have this app installed
-# you'll need to redirect to the facebook add page
+#  the user didn't get here from facebook 
+#  but rather directly
+# ask the user to login or add the app
 
 if { [exists_and_not_null fb_sig_session_key] } {
 
@@ -105,13 +106,26 @@ if { [exists_and_not_null fb_sig_session_key] } {
 </li>
 <li>Make sure that you choose <b> Use iframe</b>. </li>
 <li>Click submit</i>
-<li>Your new application shoud now be listed under <b>My Applications</b>.</li>
+<li>Your new application should now be listed under <b>My Applications</b>.</li>
 <li>Click on it to add your new application to your list of Facebook Applications.</li>
 <li>Click on the name of your application from your list of applications to launch your app</li>
 <li>The page should return JSON with your friends data.
 </ol>
 
-<br><br>
+<h2>Authenticating with Facebook</h2>
+<p>As of version 0.2d, the facebook api package has procs that allow you to do the following ....
+<ul>
+<li>Request for a session key outside of facebook</li>
+<li>Authenticate against facebook on your OpenACS site or web application.</li>
+<li>Store the session_key of a user for use in subsequent requests</li>
+</ul>
+<p>For more information about authenticating with facebook refer to <a href="http://developer.facebook.com/documentation.php?v=1.0&doc=auth">this</a> page.
+<p>The facebook api package now has two new tables :
+<ul>
+<li><i>fb_users</i> - stores the uid, auth_token, session_key and session_expire parameters</li>
+<li><i>oacs_fb_user_map</i> - mapping table for openacs user_id and facebook uid values</li>
+</ul>
+<p>Authenticating with facebook is useful if you want to run a web application outside of the facebook user interface but still have access to data from facebook.
 
 </body>
 </html>
