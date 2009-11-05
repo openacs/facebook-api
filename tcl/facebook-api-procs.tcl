@@ -381,12 +381,10 @@ ad_proc facebook_api::photo_getphotos {
     return [facebook_api::do_request -package_key $package_key -method "photos.get" -params $params]
 }
 
-
 # ***************************
 # Feed procs
 # - procs related to publishing feeds to user's profile page
 # ***************************
-
 
 ad_proc facebook_api::set_fbml {
     -package_key
@@ -429,6 +427,46 @@ ad_proc facebook_api::publish_templatized_action {
     Publish a templatized story to user's feed
 } {
     return [facebook_api::do_request -package_key $package_key -method "feed.publishTemplatizedAction" -params [list session_key $session_key title $title body $body]]
+}
+
+# ***************************
+# FQL
+# - procs for querying fb data via fql
+# ***************************
+
+ad_proc facebook_api::fqlquery {
+    -package_key
+    -session_key
+    -query
+    {-format json}
+} {
+    Query facebook data by using FQL
+} {
+    return [facebook_api::do_request -package_key $package_key -method "fql.query" -params [list session_key $session_key format $format query $query]]
+}
+
+# ***************************
+# Error Handling
+# - use this to verify if the facebook response_string has an error-code
+# - returns 0 if it does not contain an error_code
+# - returns the error_msg if it contains an error_code
+# ***************************
+
+ad_proc facebook_api::check_error {
+    -fb_response_string
+    {-format json}
+} {
+    Feed this proc a response string from a facebook request.
+    This proc returns 0 if the response is valid. 
+    It returns the error_msg if the response_string contains an error_code
+    NOTE: only supports json format right now
+} {
+    set response_json [json::json2dict $fb_response_string]
+    if { [lindex $response_json 0] == "error_code" } {
+        return [lindex $response_json 3]
+    } else {
+        return 0
+    }
 }
 
 # ***************************
@@ -515,3 +553,4 @@ ad_proc facebook_api::update_friends {
     db_dml update_last "update fb_users set last_friends_update = current_timestamp where uid = :uid"
     db_flush_cache -cache_key_pattern $uid
 }
+
