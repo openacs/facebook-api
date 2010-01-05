@@ -1,5 +1,5 @@
 create table fb_users (
-    uid integer not null primary key,
+    uid bigint not null primary key,
     last_friends_update timestamptz,
     auth_token text,
     session_key text,
@@ -7,16 +7,16 @@ create table fb_users (
 );
 
 create table fb_friends (
-    uid integer,
-    friend_uid integer
+    uid bigint,
+    friend_uid bigint
 );
 
 create table fb_groups (
-    gid integer,
-    uid integer
+    gid bigint,
+    uid bigint
 );
 
 create table oacs_fb_user_map (
-    user_id integer not null primary key,
-    uid integer
+    user_id bigint not null primary key,
+    uid bigint
 );
