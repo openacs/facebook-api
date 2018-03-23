@@ -484,7 +484,7 @@ ad_proc facebook_api::score_friends {
 
     @return list of lists {friend1 friend2 friend_p}
 } {
-    # do requests if they arent in the db
+    # do requests if they aren't in the db
     
 }
 
