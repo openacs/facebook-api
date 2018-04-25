@@ -98,7 +98,7 @@ ad_proc facebook_api::sig {
     @return sig formatted for Facebook API
 } {
     set sig ""
-    set params_list [list]
+    set params_list {}
     foreach {key value} $params {
         append sig "${key}=${value}"
     }
@@ -134,7 +134,7 @@ ad_proc facebook_api::format_post_vars {
     @param list of key value pairs in array get format
     @return formatted key=value&key=value...
 } {
-    set params_list [list]
+    set params_list {}
     foreach {key value} $params {
         lappend params_list [list $key $value]
     }
@@ -146,11 +146,11 @@ ad_proc facebook_api::sort_params {
 } {
 
 } {
-    set params_list [list]
+    set params_list {}
     foreach {key value} $params {
         lappend params_list [list $key $value]
     }
-    set params [list]
+    set params {}
     foreach l [lsort -index 0 $params_list] {
         lappend params [lindex $l 0] [lindex $l 1]
     }
@@ -298,9 +298,9 @@ ad_proc facebook_api::are_friends {
 } {
     List of lists id1 id2 friends_p
 } {
-    set all_friends [list]
-    set all_friends2 [list]
-    set loadedcombo [list]
+    set all_friends {}
+    set all_friends2 {}
+    set loadedcombo {}
     # we need to make a list of every combination
     foreach f $friend_ids {
         foreach f2 $friend_ids {

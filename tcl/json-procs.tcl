@@ -54,7 +54,7 @@ proc json::_json2dict {{txtvar txt}} {
 		    # we are dealing with an Object
 		    getc
 		    set state OBJECT
-		    set dictVal [list]
+		    set dictVal {}
 		}
 		VALUE {
 		    # this object element's value is an Object
